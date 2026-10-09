@@ -1,0 +1,7 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+jinja2>=3.1
+python-multipart>=0.0.9
+# yt-dlp changes often to keep up with YouTube: deploy.sh upgrades it on every deploy.
+# [default] pulls yt-dlp-ejs, needed (with Deno) to solve YouTube's JS challenges.
+yt-dlp[default]>=2026.8.19

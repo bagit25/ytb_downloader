@@ -1,0 +1,37 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:          # "Run workflow" button in the Actions tab
+  schedule:
+    - cron: "0 4 * * 1"       # every Monday 04:00 UTC: refresh yt-dlp
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and import-check
+        run: |
+          pip install -r requirements.txt
+          python -c "import app.main; print('app imports OK')"
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: bash /home/ubuntu/ytb_downloader/deploy/deploy.sh
