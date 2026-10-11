@@ -27,6 +27,11 @@ SHORT_SECONDS = _int("SHORT_SECONDS", 60)
 # Optional helpers when YouTube blocks the server IP ("confirm you're not a bot").
 COOKIES_FILE = os.getenv("COOKIES_FILE", "")    # Netscape cookies.txt path
 PROXY = os.getenv("PROXY", "")                  # e.g. http://user:pass@host:port
+# Prefer HLS (m3u8) streams: on blocked/proxied servers YouTube often answers 403 for
+# direct streams but still serves HLS. Set PREFER_HLS=0 to disable.
+PREFER_HLS = os.getenv("PREFER_HLS", "1") not in ("0", "false", "no", "")
+# Optional comma-separated yt-dlp player clients, e.g. "default,web_safari".
+YTDLP_CLIENTS = [c.strip() for c in os.getenv("YTDLP_CLIENTS", "").split(",") if c.strip()]
 
 ALLOWED_HOSTS = {
     "youtube.com", "www.youtube.com", "m.youtube.com",

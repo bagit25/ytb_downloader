@@ -54,6 +54,8 @@ def _base_opts() -> dict:
         opts["cookiefile"] = config.COOKIES_FILE
     if config.PROXY:
         opts["proxy"] = config.PROXY
+    if config.YTDLP_CLIENTS:
+        opts["extractor_args"] = {"youtube": {"player_client": config.YTDLP_CLIENTS}}
     return opts
 
 
@@ -176,7 +178,9 @@ class JobManager:
             job.title = info["title"] or "video"
             if info["is_live"]:
                 raise UserError("Les directs ne peuvent pas être téléchargés.")
-            if info["duration"] and info["duration"] > config.MAX_DURATION and job.fmt != "short":
+            # A Short only needs the first seconds, unless HLS forces a full download.
+            short_exempt = job.fmt == "short" and not config.PREFER_HLS
+            if info["duration"] and info["duration"] > config.MAX_DURATION and not short_exempt:
                 raise UserError(f"Vidéo trop longue (limite : {config.MAX_DURATION // 60} min).")
 
             out = self._download(job, workdir)
@@ -204,7 +208,10 @@ class JobManager:
         def hook(d: dict) -> None:
             if d.get("status") == "downloading":
                 total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-                if total:
+                frags, idx = d.get("fragment_count"), d.get("fragment_index")
+                if frags and idx is not None:          # HLS: count fragments
+                    job.progress = max(job.progress, min(idx / frags * 95, 95))
+                elif total:
                     # Two streams (video + audio) are merged; keep the bar monotonic.
                     pct = d.get("downloaded_bytes", 0) / total * 95
                     job.progress = max(job.progress, min(pct, 95))
@@ -217,19 +224,23 @@ class JobManager:
             "progress_hooks": [hook],
         }
         if job.fmt == "mp3":
+            hls = "ba[protocol^=m3u8]/b[protocol^=m3u8]/" if config.PREFER_HLS else ""
             opts |= {
-                "format": "bestaudio/best",
+                "format": hls + "bestaudio/best",
                 "postprocessors": [{"key": "FFmpegExtractAudio",
                                     "preferredcodec": "mp3", "preferredquality": "192"}],
             }
         else:
             q = 1080 if job.fmt == "short" else job.quality
+            hls = (f"b[protocol^=m3u8][height<={q}]/"
+                   f"bv*[protocol^=m3u8][height<={q}]+ba[protocol^=m3u8]/"
+                   if config.PREFER_HLS else "")
             opts |= {
-                "format": (f"bv*[height<={q}][ext=mp4]+ba[ext=m4a]/"
+                "format": (hls + f"bv*[height<={q}][ext=mp4]+ba[ext=m4a]/"
                            f"bv*[height<={q}]+ba/b[height<={q}]/b"),
                 "merge_output_format": "mp4",
             }
-            if job.fmt == "short":
+            if job.fmt == "short" and not config.PREFER_HLS:
                 # Only fetch what the Short needs.
                 opts["download_ranges"] = yt_dlp.utils.download_range_func(
                     None, [(0, config.SHORT_SECONDS)])
