@@ -42,10 +42,11 @@ python3 -m venv venv
 chmod +x deploy/*.sh
 
 echo "==> Firewall inside the VM (Oracle images block 80/443 by default)"
+# Rules must sit ABOVE Oracle's catch-all REJECT line, whose position varies by image.
 for port in 80 443; do
-  if ! sudo iptables -C INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null; then
-    sudo iptables -I INPUT 6 -p tcp --dport "$port" -m state --state NEW -j ACCEPT
-  fi
+  while sudo iptables -D INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null; do :; done
+  POS=$(sudo iptables -L INPUT --line-numbers -n | awk '$2=="REJECT"{print $1; exit}')
+  sudo iptables -I INPUT "${POS:-1}" -p tcp --dport "$port" -m state --state NEW -j ACCEPT
 done
 sudo netfilter-persistent save
 
