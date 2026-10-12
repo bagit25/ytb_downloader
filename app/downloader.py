@@ -32,12 +32,12 @@ class UserError(Exception):
 def validate_url(url: str) -> str:
     url = (url or "").strip()
     if not url:
-        raise UserError("Collez un lien YouTube.")
+        raise UserError("Paste a YouTube link.")
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     host = (urlparse(url).hostname or "").lower()
     if host not in config.ALLOWED_HOSTS:
-        raise UserError("Ce lien n'est pas un lien YouTube.")
+        raise UserError("This is not a YouTube link.")
     return url
 
 
@@ -63,19 +63,19 @@ def _friendly(err: Exception) -> str:
     msg = str(err)
     low = msg.lower()
     if "not a bot" in low or "sign in to confirm" in low:
-        return ("YouTube bloque temporairement ce serveur. Réessayez plus tard "
-                "ou configurez des cookies (voir README).")
+        return ("YouTube is temporarily blocking this server. Try again later "
+                "or configure cookies (see README).")
     if "unable to connect" in low or "timed out" in low or "proxy" in low:
-        return "Le serveur n'arrive pas à joindre YouTube. Réessayez dans un instant."
+        return "The server cannot reach YouTube right now. Try again in a moment."
     if "private" in low:
-        return "Cette vidéo est privée."
+        return "This video is private."
     if "unavailable" in low or "removed" in low:
-        return "Cette vidéo n'est pas disponible."
+        return "This video is not available."
     if "age" in low and "restrict" in low:
-        return "Vidéo soumise à une limite d'âge : des cookies sont nécessaires."
+        return "This video is age-restricted: cookies are required."
     if "live" in low:
-        return "Les directs ne peuvent pas être téléchargés."
-    return "Échec du téléchargement : " + re.sub(r"^ERROR:\s*", "", msg)[:200]
+        return "Live streams cannot be downloaded."
+    return "Download failed: " + re.sub(r"^ERROR:\s*", "", msg)[:200]
 
 
 def fetch_info(url: str) -> dict:
@@ -86,7 +86,7 @@ def fetch_info(url: str) -> dict:
     except yt_dlp.utils.DownloadError as e:
         raise UserError(_friendly(e)) from e
     if info.get("_type") == "playlist":
-        raise UserError("Les playlists ne sont pas prises en charge : collez le lien d'une vidéo.")
+        raise UserError("Playlists are not supported: paste the link of a single video.")
     heights = sorted({f.get("height") for f in info.get("formats", [])
                       if f.get("height") and f.get("vcodec") != "none"})
     qualities = [q for q in sorted(QUALITIES) if any(h >= q for h in heights)] or [360]
@@ -146,18 +146,18 @@ class JobManager:
     def submit(self, url: str, fmt: str, quality: int, ip: str) -> Job:
         url = validate_url(url)
         if fmt not in FORMATS:
-            raise UserError("Format inconnu.")
+            raise UserError("Unknown format.")
         if quality not in QUALITIES:
             quality = 720
         with self.lock:
             now = time.time()
             recent = [t for t in self.hits.get(ip, []) if now - t < config.RATE_WINDOW]
             if len(recent) >= config.RATE_LIMIT:
-                raise UserError("Trop de demandes. Patientez quelques minutes.")
+                raise UserError("Too many requests. Wait a few minutes and try again.")
             active = sum(j.status in ("queued", "downloading", "processing")
                          for j in self.jobs.values())
             if active >= config.MAX_QUEUE:
-                raise UserError("Le serveur est occupé. Réessayez dans un instant.")
+                raise UserError("The server is busy. Try again in a moment.")
             recent.append(now)
             self.hits[ip] = recent
             job = Job(id=uuid.uuid4().hex, url=url, fmt=fmt, quality=quality, ip=ip)
@@ -177,28 +177,28 @@ class JobManager:
             info = fetch_info(job.url)
             job.title = info["title"] or "video"
             if info["is_live"]:
-                raise UserError("Les directs ne peuvent pas être téléchargés.")
+                raise UserError("Live streams cannot be downloaded.")
             # A Short only needs the first seconds, unless HLS forces a full download.
             short_exempt = job.fmt == "short" and not config.PREFER_HLS
             if info["duration"] and info["duration"] > config.MAX_DURATION and not short_exempt:
-                raise UserError(f"Vidéo trop longue (limite : {config.MAX_DURATION // 60} min).")
+                raise UserError(f"Video too long (limit: {config.MAX_DURATION // 60} min).")
 
             out = self._download(job, workdir)
             if job.fmt == "short":
-                job.status, job.message = "processing", "Recadrage en 9:16…"
+                job.status, job.message = "processing", "Cropping to 9:16…"
                 out = self._make_short(out, workdir)
 
             ext = {"mp3": "mp3", "mp4": "mp4", "short": "mp4"}[job.fmt]
             suffix = " (short)" if job.fmt == "short" else ""
             job.filename = _safe_name(job.title + suffix, ext)
             job.file = out
-            job.progress, job.status, job.message = 100.0, "done", "Prêt."
+            job.progress, job.status, job.message = 100.0, "done", "Ready."
         except UserError as e:
             job.status, job.message = "error", str(e)
         except yt_dlp.utils.DownloadError as e:
             job.status, job.message = "error", _friendly(e)
         except Exception as e:  # noqa: BLE001 - last-resort guard
-            job.status, job.message = "error", f"Erreur inattendue : {type(e).__name__}"
+            job.status, job.message = "error", f"Unexpected error: {type(e).__name__}"
         finally:
             job.finished = time.time()
             if job.status == "error":
@@ -215,9 +215,9 @@ class JobManager:
                     # Two streams (video + audio) are merged; keep the bar monotonic.
                     pct = d.get("downloaded_bytes", 0) / total * 95
                     job.progress = max(job.progress, min(pct, 95))
-                job.message = "Téléchargement…"
+                job.message = "Downloading…"
             elif d.get("status") == "finished":
-                job.message = "Conversion…"
+                job.message = "Converting…"
 
         opts = _base_opts() | {
             "outtmpl": str(workdir / "media.%(ext)s"),
@@ -250,7 +250,7 @@ class JobManager:
             ydl.download([job.url])
         files = [p for p in workdir.iterdir() if p.is_file() and p.suffix != ".part"]
         if not files:
-            raise UserError("Aucun fichier produit.")
+            raise UserError("No file was produced.")
         return max(files, key=lambda p: p.stat().st_size)
 
     @staticmethod
@@ -266,7 +266,7 @@ class JobManager:
                "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dst)]
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
         if res.returncode != 0 or not dst.exists():
-            raise UserError("La conversion en Short a échoué.")
+            raise UserError("Converting to a Short failed.")
         src.unlink(missing_ok=True)
         return dst
 

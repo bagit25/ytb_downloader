@@ -21,6 +21,14 @@ templates = Jinja2Templates(directory=BASE / "templates")
 jobs = JobManager()
 
 
+@app.middleware("http")
+async def frame_policy(request: Request, call_next):
+    # Only the sites listed in FRAME_ANCESTORS may show the app in an iframe.
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = f"frame-ancestors {config.FRAME_ANCESTORS}"
+    return response
+
+
 @app.exception_handler(UserError)
 async def user_error(_: Request, exc: UserError):
     return JSONResponse({"error": str(exc)}, status_code=400)
@@ -56,7 +64,7 @@ async def create_job(request: Request, url: str = Form(...),
 async def job_status(job_id: str):
     job = jobs.get(job_id)
     if not job:
-        raise HTTPException(404, "Tâche introuvable ou expirée.")
+        raise HTTPException(404, "Job not found or expired.")
     return job.public()
 
 
@@ -64,7 +72,7 @@ async def job_status(job_id: str):
 async def job_file(job_id: str):
     job = jobs.get(job_id)
     if not job or job.status != "done" or not job.file or not job.file.exists():
-        raise HTTPException(404, "Fichier introuvable ou expiré.")
+        raise HTTPException(404, "File not found or expired.")
     media = "audio/mpeg" if job.filename.endswith(".mp3") else "video/mp4"
     return FileResponse(job.file, media_type=media, filename=job.filename)
 

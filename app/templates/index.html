@@ -1,30 +1,31 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ app_name }} — vidéo et audio depuis un lien</title>
-  <meta name="description" content="Collez un lien de vidéo, choisissez MP3, MP4 ou Short 9:16, et récupérez le fichier.">
+  <title>{{ app_name }} — video and audio from a link</title>
+  <meta name="description" content="Paste a video link, choose MP3, MP4 or a 9:16 Short, and get the file.">
+  <script>if (window.self !== window.top) document.documentElement.classList.add("embedded");</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v=2">
   <link rel="icon" href="{{ url_for('static', path='favicon.svg') }}" type="image/svg+xml">
 </head>
 <body>
-  <main class="shell">
+  <main class="shell" id="shell">
     <header class="brand">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3v16m-7-7 7 7 7-7" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 22v5h24v-5" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>{{ app_name }}</span>
     </header>
 
     <form id="form" class="tool" novalidate>
-      <h1><label for="url">Collez un lien, récupérez le fichier.</label></h1>
+      <h1><label for="url">Paste a link, get the file.</label></h1>
 
       <div class="field">
         <input id="url" name="url" type="url" inputmode="url" autocomplete="off" spellcheck="false"
                placeholder="https://youtu.be/…" required aria-describedby="status">
-        <button type="button" id="paste" class="ghost">Coller</button>
+        <button type="button" id="paste" class="ghost">Paste</button>
       </div>
 
       <section id="preview" class="preview" hidden aria-live="polite">
@@ -41,24 +42,24 @@
           <input type="radio" name="format" value="mp3">
           <span class="glyph g-audio" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
           <span class="fmt-name">MP3</span>
-          <span class="fmt-desc">Audio seul, 192 kb/s</span>
+          <span class="fmt-desc">Audio only, 192 kbps</span>
         </label>
         <label class="fmt">
           <input type="radio" name="format" value="mp4" checked>
           <span class="glyph g-wide" aria-hidden="true"></span>
           <span class="fmt-name">MP4</span>
-          <span class="fmt-desc">Vidéo 16:9 avec le son</span>
+          <span class="fmt-desc">16:9 video with sound</span>
         </label>
         <label class="fmt">
           <input type="radio" name="format" value="short">
           <span class="glyph g-tall" aria-hidden="true"></span>
           <span class="fmt-name">Short</span>
-          <span class="fmt-desc">9:16, {{ short_seconds }} premières secondes</span>
+          <span class="fmt-desc">9:16, first {{ short_seconds }} seconds</span>
         </label>
       </fieldset>
 
       <div id="quality-row" class="quality">
-        <label for="quality">Qualité vidéo</label>
+        <label for="quality">Video quality</label>
         <select id="quality" name="quality">
           <option value="360">360p</option>
           <option value="480">480p</option>
@@ -67,7 +68,7 @@
         </select>
       </div>
 
-      <button id="go" class="primary" type="submit">Télécharger en MP4</button>
+      <button id="go" class="primary" type="submit">Download MP4</button>
 
       <div class="progress" id="progress" hidden>
         <div class="bar"><span id="bar-fill"></span></div>
@@ -76,10 +77,10 @@
     </form>
 
     <footer class="foot">
-      <p>Vidéos jusqu'à {{ max_minutes }} min. Les fichiers sont effacés du serveur après 15 minutes.
-         Téléchargez uniquement des contenus dont vous avez les droits.</p>
+      <p>Videos up to {{ max_minutes }} min. Files are deleted from the server after 15 minutes.
+         Only download content you have the rights to.</p>
     </footer>
   </main>
-  <script src="{{ url_for('static', path='app.js') }}" defer></script>
+  <script src="{{ url_for('static', path='app.js') }}?v=2" defer></script>
 </body>
 </html>

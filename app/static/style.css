@@ -180,3 +180,9 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--cobalt); o
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Inside an iframe: no full-viewport height (avoids a resize loop) and a tighter top. */
+.embedded body { min-height: 0; }
+.embedded .shell { padding-top: 1.25rem; padding-bottom: 1.5rem; }
+.embedded .brand { margin-bottom: 1.5rem; }
+.embedded .foot { margin-top: 2rem; }

@@ -33,6 +33,10 @@ PREFER_HLS = os.getenv("PREFER_HLS", "1") not in ("0", "false", "no", "")
 # Optional comma-separated yt-dlp player clients, e.g. "default,web_safari".
 YTDLP_CLIENTS = [c.strip() for c in os.getenv("YTDLP_CLIENTS", "").split(",") if c.strip()]
 
+# Sites allowed to embed the app in an iframe (CSP frame-ancestors syntax).
+FRAME_ANCESTORS = os.getenv(
+    "FRAME_ANCESTORS", "'self' https://digitplans.com https://*.digitplans.com")
+
 ALLOWED_HOSTS = {
     "youtube.com", "www.youtube.com", "m.youtube.com",
     "music.youtube.com", "youtu.be", "www.youtu.be",
